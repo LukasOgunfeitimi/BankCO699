@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
 import '../index.css';
-const API_URL = "http://localhost:3001"; // Replace with your server URL
+import { API_URL } from "../config"
+
 function Register() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");

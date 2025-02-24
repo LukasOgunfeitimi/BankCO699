@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
 import '../index.css';
-
-const API_URL = "http://localhost:3001"; // Replace with your server URL
+import { API_URL } from "../config"
 
 function Dashboard() {
     const [balance, setBalance] = useState(0);
@@ -44,8 +43,9 @@ function Dashboard() {
   
       fetchData();
     }, [navigate]);
-  
+    
     const handleDeposit = async () => {
+      console.log(API_URL)
       const token = localStorage.getItem("token");
       const response = await fetch(`${API_URL}/deposit`, {
         method: "POST",
@@ -109,7 +109,7 @@ function Dashboard() {
     };
   
     return (
-      <div className="bg-white p-8 rounded-xl shadow-2xl w-96 transform transition-all hover:scale-105">
+      <div className="bg-white p-8 rounded-xl shadow-2xl w-96 transform transition-all">
         <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Dashboard</h2>
         {error && <p className="text-red-500 text-center mb-4">{error}</p>}
         <p className="text-center text-gray-700 mb-4">
