@@ -4,7 +4,7 @@ import '../index.css';
 import { API_URL } from "../config"
 
 function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ function Login() {
       const response = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email: email, password }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -37,10 +37,10 @@ function Login() {
       <form onSubmit={handleLogin} className="space-y-4">
         <input
           type="text"
-          placeholder="Username"
+          placeholder="Email"
           className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
         />
         <input
           type="password"
@@ -57,6 +57,12 @@ function Login() {
         No account?{" "}
         <Link to="/register" className="text-blue-600 hover:underline">
           Register
+        </Link>
+      </p>
+      <p className="mt-2 text-center text-gray-600">
+        Forgot password?{" "}
+        <Link to="/requestreset" className="text-blue-600 hover:underline">
+          Reset password
         </Link>
       </p>
     </div>

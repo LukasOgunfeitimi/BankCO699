@@ -4,7 +4,8 @@ import '../index.css';
 import { API_URL } from "../config"
 
 function Register() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ function Register() {
       const response = await fetch(`${API_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, name, password }),
       });
       const data = await response.json();
       if (response.ok) {
@@ -35,11 +36,18 @@ function Register() {
       {error && <p className="text-red-500 text-center mb-4">{error}</p>}
       <form onSubmit={handleRegister} className="space-y-4">
         <input
-          type="text"
-          placeholder="Username"
+          type="email"
+          placeholder="Email"
           className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="text"
+          placeholder="Name"
+          className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
         />
         <input
           type="password"

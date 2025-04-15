@@ -3,7 +3,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config({ path: './config.env' });
+const sendEmail = require('./utils/sendEmail.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -15,12 +16,12 @@ app.use(cors());
 
 // User Registration
 app.post('/register', async (req, res) => {
-  const { username, password } = req.body;
+  const { email, name, password } = req.body;
   const hashedPassword = await bcrypt.hash(password, 10);
 
   const { data: user, error: userError } = await supabase
     .from('users')
-    .insert([{ username, password: hashedPassword }])
+    .insert([{ email, name, password: hashedPassword }])
     .select()
     .single();
 
@@ -29,7 +30,7 @@ app.post('/register', async (req, res) => {
   // Create an account for the user
   const { data: account, error: accountError } = await supabase
     .from('accounts')
-    .insert([{ user_id: user.id, balance: 0 }])
+    .insert([{ user_id: user.id, balance: 0, account_num: Math.floor(Math.random() * 100_000_000) }])
     .select()
     .single();
 
@@ -40,12 +41,12 @@ app.post('/register', async (req, res) => {
 
 // User Login
 app.post('/login', async (req, res) => {
-  const { username, password } = req.body;
+  const { email, password } = req.body;
 
   const { data: user, error } = await supabase
     .from('users')
     .select('*')
-    .eq('username', username)
+    .eq('email', email)
     .single();
 
   if (error || !user) return res.status(400).json({ error: 'Invalid credentials' });
@@ -53,8 +54,52 @@ app.post('/login', async (req, res) => {
   const validPassword = await bcrypt.compare(password, user.password);
   if (!validPassword) return res.status(400).json({ error: 'Invalid credentials' });
 
-  const token = jwt.sign({ id: user.id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, process.env.JWT_SECRET, { expiresIn: '1h' });
   res.json({ token });
+});
+
+/**
+ * make sure to talk about how u dont tell the client if the user isnt found due to security
+ */
+app.post('/requestreset', async (req, res) => {
+  const { email } = req.body;
+
+  /*
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('email', email)
+    .single();
+
+  if (error || !user) return res.json({ status: "done" });
+*/
+  // Generate a password reset token
+  const token = jwt.sign({ id: 1, type: 'requestreset' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  
+  //const email = await sendEmail('lukas7865@yahoo.co.uk', 'http://localhost:3000', token)
+
+  return res.json({ status: "done" });
+});
+
+// Reset Password
+app.post('/reset', async (req, res) => {
+  const { password, token } = req.body;
+  if (!password || !token) return res.status(400).json({ error: 'Invalid request' });
+  try { 
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.type !== 'requestreset') return res.status(400).json({ error: 'Invalid token' });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const { data, error } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id', decoded.id)
+      .select()
+      .single();
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ message: 'Password reset successfully' });
+  } catch (err) {
+    res.status(400).json({ error: 'Invalid token' });
+  }
 });
 
 // Middleware to authenticate requests
@@ -79,7 +124,7 @@ app.get('/balance', authenticate, async (req, res) => {
     .single();
 
   if (error) return res.status(400).json({ error: error.message });
-  res.json({ balance: data.balance });
+  res.json({ balance: data.balance});
 });
 
 // Deposit Funds
