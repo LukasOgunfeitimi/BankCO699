@@ -104,69 +104,102 @@ function Dashboard() {
     }
   
     const handleLogout = () => {
-      localStorage.removeItem("token"); // Clear the token
-      navigate("/login"); // Redirect to the login page
+      localStorage.removeItem("token");
+      navigate("/login"); 
     };
   
     return (
-      <div className="bg-white p-8 rounded-xl shadow-2xl w-96 transform transition-all">
-        <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Dashboard</h2>
-        {error && <p className="text-red-500 text-center mb-4">{error}</p>}
-        <p className="text-center text-gray-700 mb-4">
-          Your balance: <strong className="text-blue-600">${balance}</strong>
-        </p>
-        <div className="space-y-4">
-          <input
-            type="number"
-            placeholder="Amount"
-            className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-          />
-          <button
-            onClick={handleDeposit}
-            className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-300"
-          >
-            Deposit
-          </button>
-          <button
-            onClick={handleTransfer}
-            className="w-full bg-yellow-600 text-white p-3 rounded-lg hover:bg-yellow-700 transition duration-300"
-          >
+      <div className="min-h-screen bg-gray-100">
+      <nav className="relative flex items-center justify-between px-8 py-6 bg-white shadow-md">
+        {/* Left: Logo */}
+        <div className="flex-shrink-0">
+          <h1 className="text-2xl font-bold text-blue-600">LuFunds</h1>
+        </div>
+
+        {/* Center: Nav Links */}
+        <div className="absolute left-1/2 transform -translate-x-1/2 flex gap-6">
+          <button className="text-gray-600 hover:text-blue-600 transition">Dashboard</button>
+          <button onClick={handleTransfer} className="text-gray-600 hover:text-blue-600 transition">
             Transfer
           </button>
-          <button
-            onClick={handleWithdraw}
-            className="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition duration-300"
+          <button className="text-gray-600 hover:text-blue-600 transition">Profile</button>
+        </div>
+
+        {/* Optional Right: Logout button */}
+        <div className=" flex gap-6">
+        <button
+            className="text-blue-600 hover:text-blue-800 font-medium transition"
           >
-            Withdraw
+            Settings
+          </button>
+          <button
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 font-medium transition"
+          >
+            Logout
           </button>
         </div>
-        <h3 className="text-xl font-bold text-center text-gray-800 mt-6 mb-4">Transaction History</h3>
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {transactions.map((transaction) => (
-            <div
-              key={transaction.id}
-              className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
-            >
-              <p>
-                <strong>{transaction.type}</strong>: ${transaction.amount}
+      </nav>
+
+    
+        {/* Main content below navbar */}
+        <div className="flex justify-center p-8">
+          <div className="flex gap-8 w-full max-w-6xl">
+            {/* Left Panel: Actions */}
+            <div className="bg-white p-8 rounded-xl shadow-2xl w-1/2">
+              <h2 className="text-3xl font-bold text-center text-gray-800 mb-6">Dashboard</h2>
+              {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+              <p className="text-center text-gray-700 mb-4">
+                Your balance: <strong className="text-blue-600">${balance}</strong>
               </p>
-              <p className="text-sm text-gray-500">
-                {new Date(transaction.created_at).toLocaleString()}
-              </p>
+              <div className="space-y-4">
+                <input
+                  type="number"
+                  placeholder="Amount"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                />
+                <button
+                  onClick={handleDeposit}
+                  className="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition duration-300"
+                >
+                  Deposit
+                </button>
+                <button
+                  onClick={handleWithdraw}
+                  className="w-full bg-red-600 text-white p-3 rounded-lg hover:bg-red-700 transition duration-300"
+                >
+                  Withdraw
+                </button>
+              </div>
             </div>
-          ))}
+    
+            {/* Right Panel: Transaction History */}
+            <div className="bg-white p-8 rounded-xl shadow-2xl w-1/2 h-[600px] overflow-y-auto">
+              <h3 className="text-2xl font-bold text-center text-gray-800 mb-6">Transaction History</h3>
+              <div className="space-y-4">
+                {transactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all"
+                  >
+                    <p>
+                      <strong>{transaction.type}</strong>: ${transaction.amount}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(transaction.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-        {/* Logout Button */}
-        <button
-          onClick={handleLogout}
-          className="w-full mt-6 bg-gray-600 text-white p-3 rounded-lg hover:bg-gray-700 transition duration-300"
-        >
-          Logout
-        </button>
       </div>
     );
+    
+    
   }
 
 export default Dashboard

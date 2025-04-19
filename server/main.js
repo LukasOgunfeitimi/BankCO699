@@ -74,6 +74,7 @@ app.post('/requestreset', async (req, res) => {
   if (error || !user) return res.json({ status: "done" });
 */
   // Generate a password reset token
+  
   const token = jwt.sign({ id: 1, type: 'requestreset' }, process.env.JWT_SECRET, { expiresIn: '1h' });
   
   //const email = await sendEmail('lukas7865@yahoo.co.uk', 'http://localhost:3000', token)
