@@ -1,20 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { API_URL } from "../../../config";
 
 function Transfer() {
+  const { token } = useOutletContext();
   const [recipientId, setRecipientId] = useState("");
   const [amount, setAmount] = useState("");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-    }
-  }, [navigate]);
 
   const handleTransfer = async () => {
     setError("");

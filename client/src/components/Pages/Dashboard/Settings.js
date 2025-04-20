@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { API_URL } from "../../../config";
 
 function Settings() {
+  const { token } = useOutletContext();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -12,12 +13,6 @@ function Settings() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
     const fetchUserSettings = async () => {
       try {
         const response = await fetch(`${API_URL}/settings`, {
@@ -39,7 +34,7 @@ function Settings() {
     };
 
     fetchUserSettings();
-  }, [navigate]);
+  }, [token]);
 
   const handleUpdateProfile = async () => {
     setError("");

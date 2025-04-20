@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useOutletContext , useNavigate } from "react-router-dom";
 import '../../../index.css';
 import { API_URL } from "../../../config"
 
 function Dashboard() {
+    const { token } = useOutletContext();
     const [balance, setBalance] = useState(0);
     const [transactions, setTransactions] = useState([]);
     const [amount, setAmount] = useState("");
     const [error, setError] = useState("");
-    const navigate = useNavigate();
   
     useEffect(() => {
       const fetchData = async () => {
@@ -36,7 +36,7 @@ function Dashboard() {
       };
   
       fetchData();
-    }, [navigate]);
+    }, [token]);
     
     const handleDeposit = async () => {
       console.log(API_URL)
