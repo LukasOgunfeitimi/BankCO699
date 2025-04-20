@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useNavigate } from "react-router-dom";
-import '../index.css';
-import { API_URL } from "../config"
+import '../../index.css';
+import { API_URL } from "../../config"
 
 function Register() {
   const [email, setEmail] = useState("");
