@@ -4,91 +4,107 @@ const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 require('dotenv').config({ path: './config.env' });
-const sendEmail = require('./utils/sendEmail.js');
+const Email = require('./utils/sendEmail.js');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Initialize Supabase client
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
+// Middleware
 app.use(express.json());
 app.use(cors());
 
+// Utility function to handle errors
+const handleError = (res, error, status = 400) => res.status(status).json({ error: error.message || error });
+
+// Routes
+
 // User Registration
 app.post('/register', async (req, res) => {
-  const { email, name, password } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
+  try {
+    const { email, name, password } = req.body;
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-  const { data: user, error: userError } = await supabase
-    .from('users')
-    .insert([{ email, name, password: hashedPassword }])
-    .select()
-    .single();
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .insert([{ email, name, password: hashedPassword }])
+      .select()
+      .single();
+    if (userError) return handleError(res, userError);
 
-  if (userError) return res.status(400).json({ error: userError.message });
+    const { data: account, error: accountError } = await supabase
+      .from('accounts')
+      .insert([{ user_id: user.id, balance: 0, account_num: Math.floor(Math.random() * 100_000_000) }])
+      .select()
+      .single();
+    if (accountError) return handleError(res, accountError);
 
-  // Create an account for the user
-  const { data: account, error: accountError } = await supabase
-    .from('accounts')
-    .insert([{ user_id: user.id, balance: 0, account_num: Math.floor(Math.random() * 100_000_000) }])
-    .select()
-    .single();
+    await Email.sendWelcomeEmail(email, name);
 
-  if (accountError) return res.status(400).json({ error: accountError.message });
-
-  res.json({ message: 'User registered successfully', user, account });
+    res.json({ message: 'User registered successfully', user, account });
+  } catch (error) {
+    handleError(res, error);
+  }
 });
 
 // User Login
 app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .single();
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    if (error || !user) return handleError(res, 'Invalid credentials');
 
-  if (error || !user) return res.status(400).json({ error: 'Invalid credentials' });
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) return handleError(res, 'Invalid credentials');
 
-  const validPassword = await bcrypt.compare(password, user.password);
-  if (!validPassword) return res.status(400).json({ error: 'Invalid credentials' });
-
-  const token = jwt.sign({ id: user.id, email: user.email, name: user.name }, process.env.JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token });
+    const token = jwt.sign(
+      { id: user.id, email: user.email, name: user.name },
+      process.env.JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    res.json({ token });
+  } catch (error) {
+    handleError(res, error);
+  }
 });
 
-/**
- * make sure to talk about how u dont tell the client if the user isnt found due to security
- */
+// Request Password Reset
 app.post('/requestreset', async (req, res) => {
-  const { email } = req.body;
+  try {
+    const { email } = req.body;
 
-  /*
-  const { data: user, error } = await supabase
-    .from('users')
-    .select('*')
-    .eq('email', email)
-    .single();
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    if (error || !user) return res.json({ status: 'done' });
 
-  if (error || !user) return res.json({ status: "done" });
-*/
-  // Generate a password reset token
-  
-  const token = jwt.sign({ id: 1, type: 'requestreset' }, process.env.JWT_SECRET, { expiresIn: '1h' });
-  
-  //const email = await sendEmail('lukas7865@yahoo.co.uk', 'http://localhost:3000', token)
+    const token = jwt.sign({ id: user.id, type: 'requestreset' }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    await Email.sendPasswordReset(email, user.name, token);
 
-  return res.json({ status: "done" });
+    res.json({ status: 'done' });
+  } catch (error) {
+    handleError(res, error);
+  }
 });
 
 // Reset Password
 app.post('/reset', async (req, res) => {
-  const { password, token } = req.body;
-  if (!password || !token) return res.status(400).json({ error: 'Invalid request' });
-  try { 
+  try {
+    const { password, token } = req.body;
+    if (!password || !token) return handleError(res, 'Invalid request');
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    if (decoded.type !== 'requestreset') return res.status(400).json({ error: 'Invalid token' });
+    if (decoded.type !== 'requestreset') return handleError(res, 'Invalid token');
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const { data, error } = await supabase
       .from('users')
@@ -96,125 +112,257 @@ app.post('/reset', async (req, res) => {
       .eq('id', decoded.id)
       .select()
       .single();
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) return handleError(res, error);
+
     res.json({ message: 'Password reset successfully' });
-  } catch (err) {
-    res.status(400).json({ error: 'Invalid token' });
+    Email.sendPasswordChanged(data.email, data.name);
+  } catch (error) {
+    handleError(res, 'Invalid token');
   }
 });
 
 // Middleware to authenticate requests
 const authenticate = (req, res, next) => {
   const token = req.headers['authorization'];
-  if (!token) return res.status(401).json({ error: 'Access denied' });
+  if (!token) return handleError(res, 'Access denied', 401);
+
   try {
     const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
     req.user = decoded;
     next();
-  } catch (err) {
-    res.status(400).json({ error: 'Invalid token' });
+  } catch (error) {
+    handleError(res, 'Invalid token', 400);
   }
 };
 
 // Get Account Balance
 app.get('/balance', authenticate, async (req, res) => {
-  const { data, error } = await supabase
-    .from('accounts')
-    .select('balance')
-    .eq('user_id', req.user.id)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('accounts')
+      .select('balance')
+      .eq('user_id', req.user.id)
+      .single();
+    if (error) return handleError(res, error);
 
-  if (error) return res.status(400).json({ error: error.message });
-  res.json({ balance: data.balance});
+    res.json({ balance: data.balance });
+  } catch (error) {
+    handleError(res, error);
+  }
 });
 
 // Deposit Funds
 app.post('/deposit', authenticate, async (req, res) => {
-  const { amount } = req.body;
-  if (amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+  try {
+    const { amount } = req.body;
+    if (amount <= 0) return handleError(res, 'Invalid amount');
 
-  // Update account balance
-  const { data: account, error: accountError } = await supabase
-    .from('accounts')
-    .select('*')
-    .eq('user_id', req.user.id)
-    .single();
+    const { data: account, error: accountError } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .single();
+    if (accountError) return handleError(res, accountError);
 
-  if (accountError) return res.status(400).json({ error: accountError.message });
+    const newBalance = account.balance + amount;
 
-  const newBalance = account.balance + amount;
+    const { error: updateError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('user_id', req.user.id);
+    if (updateError) return handleError(res, updateError);
 
-  const { error: updateError } = await supabase
-    .from('accounts')
-    .update({ balance: newBalance })
-    .eq('user_id', req.user.id);
+    const { error: transactionError } = await supabase
+      .from('transactions')
+      .insert([{ account_id: account.id, type: 'deposit', amount, status: 'completed', currency: 'USD' }]);
+    if (transactionError) return handleError(res, transactionError);
 
-  if (updateError) return res.status(400).json({ error: updateError.message });
-
-  // Add transaction record
-  const { error: transactionError } = await supabase
-    .from('transactions')
-    .insert([{ account_id: account.id, type: 'deposit', amount }]);
-
-  if (transactionError) return res.status(400).json({ error: transactionError.message });
-
-  res.json({ message: 'Deposit successful', newBalance });
+    res.json({ message: 'Deposit successful', newBalance });
+  } catch (error) {
+    handleError(res, error);
+  }
 });
 
 // Withdraw Funds
 app.post('/withdraw', authenticate, async (req, res) => {
-  const { amount } = req.body;
-  if (amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+  try {
+    const { amount } = req.body;
+    if (amount <= 0) return handleError(res, 'Invalid amount');
 
-  // Update account balance
-  const { data: account, error: accountError } = await supabase
-    .from('accounts')
-    .select('*')
-    .eq('user_id', req.user.id)
-    .single();
+    const { data: account, error: accountError } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .single();
+    if (accountError) return handleError(res, accountError);
 
-  if (accountError) return res.status(400).json({ error: accountError.message });
+    if (account.balance < amount) return handleError(res, 'Insufficient funds');
 
-  if (account.balance < amount) return res.status(400).json({ error: 'Insufficient funds' });
+    const newBalance = account.balance - amount;
 
-  const newBalance = account.balance - amount;
+    const { error: updateError } = await supabase
+      .from('accounts')
+      .update({ balance: newBalance })
+      .eq('user_id', req.user.id);
+    if (updateError) return handleError(res, updateError);
 
-  const { error: updateError } = await supabase
-    .from('accounts')
-    .update({ balance: newBalance })
-    .eq('user_id', req.user.id);
+    const { error: transactionError } = await supabase
+      .from('transactions')
+      .insert([{ account_id: account.id, type: 'withdrawal', amount, status: 'completed', currency: 'USD' }]);
+    if (transactionError) return handleError(res, transactionError);
 
-  if (updateError) return res.status(400).json({ error: updateError.message });
-
-  // Add transaction record
-  const { error: transactionError } = await supabase
-    .from('transactions')
-    .insert([{ account_id: account.id, type: 'withdrawal', amount }]);
-
-  if (transactionError) return res.status(400).json({ error: transactionError.message });
-
-  res.json({ message: 'Withdrawal successful', newBalance });
+    res.json({ message: 'Withdrawal successful', newBalance });
+  } catch (error) {
+    handleError(res, error);
+  }
 });
 
 // Get Transaction History
 app.get('/transactions', authenticate, async (req, res) => {
-  const { data: account, error: accountError } = await supabase
-    .from('accounts')
-    .select('id')
-    .eq('user_id', req.user.id)
-    .single();
+  try {
+    const { data: account, error: accountError } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('user_id', req.user.id)
+      .single();
+    if (accountError) return handleError(res, accountError);
 
-  if (accountError) return res.status(400).json({ error: accountError.message });
+    const { data: transactions, error: transactionsError } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('account_id', account.id)
+      .order('created_at', { ascending: false });
+    if (transactionsError) return handleError(res, transactionsError);
 
-  const { data: transactions, error: transactionsError } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('account_id', account.id)
-    .order('created_at', { ascending: false });
-
-  if (transactionsError) return res.status(400).json({ error: transactionsError.message });
-
-  res.json({ transactions });
+    res.json({ transactions });
+  } catch (error) {
+    handleError(res, error);
+  }
 });
 
+// Get User Info
+app.get('/userinfo', authenticate, async (req, res) => {
+  try {
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('name, email')
+      .eq('id', req.user.id)
+      .single();
+    if (userError) return handleError(res, userError);
+
+    const { data: account, error: accountError } = await supabase
+      .from('accounts')
+      .select('account_num')
+      .eq('user_id', req.user.id)
+      .single();
+    if (accountError) return handleError(res, accountError);
+
+    res.json({ name: user.name, email: user.email, account_num: account.account_num });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// Update User Settings
+app.put('/settings', authenticate, async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return handleError(res, 'Username is required');
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({ name: username })
+      .eq('id', req.user.id)
+      .select()
+      .single();
+    if (error) return handleError(res, error);
+
+    res.json({ message: 'Profile updated successfully', user: data });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// Update User Password
+app.put('/settings/password', authenticate, async (req, res) => {
+  try {
+    const { newPassword } = req.body;
+    if (!newPassword) return handleError(res, 'New password is required');
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const { data, error } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id', req.user.id)
+      .select()
+      .single();
+    if (error) return handleError(res, error);
+
+    res.json({ message: 'Password updated successfully' });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// Transfer Funds
+app.post('/transfer', authenticate, async (req, res) => {
+  try {
+    const { amount, recipientAccountNum } = req.body;
+    if (amount <= 0) return handleError(res, 'Invalid amount');
+    if (!recipientAccountNum) return handleError(res, 'Recipient account number is required');
+
+    // Get sender's account
+    const { data: senderAccount, error: senderAccountError } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', req.user.id)
+      .single();
+    if (senderAccountError) return handleError(res, senderAccountError);
+
+    // Check if sender has sufficient funds
+    if (senderAccount.balance < amount) return handleError(res, 'Insufficient funds');
+
+    // Get recipient's account
+    const { data: recipientAccount, error: recipientAccountError } = await supabase
+      .from('accounts')
+      .select('*')
+      .eq('account_num', recipientAccountNum)
+      .single();
+    if (recipientAccountError) return handleError(res, 'Recipient account not found');
+
+    // Update sender's balance
+    const newSenderBalance = senderAccount.balance - amount;
+    const { error: senderUpdateError } = await supabase
+      .from('accounts')
+      .update({ balance: newSenderBalance })
+      .eq('user_id', req.user.id);
+    if (senderUpdateError) return handleError(res, senderUpdateError);
+
+    // Update recipient's balance
+    const newRecipientBalance = recipientAccount.balance + amount;
+    const { error: recipientUpdateError } = await supabase
+      .from('accounts')
+      .update({ balance: newRecipientBalance })
+      .eq('account_num', recipientAccountNum);
+    if (recipientUpdateError) return handleError(res, recipientUpdateError);
+
+    // Record the transaction for the sender
+    const { error: senderTransactionError } = await supabase
+      .from('transactions')
+      .insert([{ account_id: senderAccount.id, type: 'transfer', amount, status: 'completed', currency: 'USD', recipient_account_num: recipientAccountNum }]);
+    if (senderTransactionError) return handleError(res, senderTransactionError);
+
+    // Record the transaction for the recipient
+    const { error: recipientTransactionError } = await supabase
+      .from('transactions')
+      .insert([{ account_id: recipientAccount.id, type: 'transfer', amount, status: 'completed', currency: 'USD', sender_account_num: senderAccount.account_num }]);
+    if (recipientTransactionError) return handleError(res, recipientTransactionError);
+
+    res.json({ message: 'Transfer successful', newBalance: newSenderBalance });
+  } catch (error) {
+    handleError(res, error);
+  }
+});
+
+// Start the server
 app.listen(port, () => console.log(`Server running on port ${port}`));

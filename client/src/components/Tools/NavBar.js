@@ -1,48 +1,96 @@
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import PropTypes from "prop-types";
+import { FaBars, FaTimes, FaCog, FaSignOutAlt } from "react-icons/fa";
+import { useState } from "react";
 
-
-function NavBar () {
+const NavBar = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const navigate = useNavigate();
+
   const handleLogout = () => {
     localStorage.removeItem("token");
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
+
+  const navItems = [
+    { label: "Dashboard", path: "/dashboard" },
+    { label: "Transfer", path: "/transfer" }
+  ];
+
+  const actionItems = [
+    { 
+      label: "Settings", 
+      path: "/settings", 
+      icon: <FaCog className="inline-block" />,
+      className: "text-blue-600 hover:text-blue-800"
+    },
+    { 
+      label: "Logout", 
+      onClick: handleLogout, 
+      icon: <FaSignOutAlt className="inline-block" />,
+      className: "text-red-600 hover:text-red-800"
+    }
+  ];
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-6 bg-white shadow-md">
-      {/* Left: Logo */}
-      <div className="flex-shrink-0">
-        <h1 className="text-2xl font-bold text-blue-600">LuFunds</h1>
-      </div>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-lg border-b border-gray-200">
+      <nav className="mx-auto px-6 py-4 max-w-7xl flex items-center justify-between">
+        {/* Logo/Brand */}
+        <div className="flex items-center space-x-2">
+          <h1 
+            className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent cursor-pointer"
+            onClick={() => navigate("/dashboard")}
+            aria-label="LuFunds Home"
+          >
+            LuFunds
+          </h1>
+        </div>
 
-      {/* Center: Nav Links */}
-      <div className="absolute left-1/2 transform -translate-x-1/2 flex gap-6">
+        {/* Mobile Menu Button */}
         <button
-          onClick={() => { navigate("/dashboard")}}
-          className="text-gray-600 hover:text-blue-600 transition">
-          Dashboard</button>
-        <button
-          onClick={() => { navigate("transfer")}}
-          className="text-gray-600 hover:text-blue-600 transition">
-          Transfer
-        </button>
-      </div>
-
-      {/* Optional Right: Logout button */}
-      <div className=" flex gap-6">
-      <button
-          onClick={() => { navigate("settings")}}
-          className="text-blue-600 hover:text-blue-800 font-medium transition">
-          Settings
-        </button>
-        <button
-          onClick={handleLogout}
-          className="text-red-600 hover:text-red-800 font-medium transition"
+          className="md:hidden p-2 rounded-full hover:bg-gray-100 transition-colors"
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
-          Logout
+          {isMenuOpen ? <FaTimes className="text-gray-600" /> : <FaBars className="text-gray-600" />}
         </button>
-      </div>
-    </nav>
-  )
-}
+
+        {/* Primary Navigation */}
+        <div className={`md:flex items-center space-x-8 ${isMenuOpen ? "absolute top-full left-0 right-0 bg-white shadow-lg p-4" : "hidden"}`}>
+          {navItems.map((item) => (
+            <button
+              key={item.path}
+              onClick={() => {
+                navigate(item.path);
+                setIsMenuOpen(false);
+              }}
+              className="text-gray-700 hover:text-blue-600 transition-colors duration-200 font-medium text-sm capitalize"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Secondary Navigation/Actions */}
+        <div className="flex items-center space-x-6">
+          {actionItems.map((item, index) => (
+            <button
+              key={index}
+              onClick={item.onClick || (() => navigate(item.path))}
+              className={`flex items-center space-x-2 ${item.className} transition-colors duration-200`}
+              aria-label={item.label}
+            >
+              {item.icon}
+              <span className="text-sm font-medium">{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+    </header>
+  );
+};
+
+NavBar.propTypes = {
+  // Add prop types if your component receives any props
+};
 
 export default NavBar;
