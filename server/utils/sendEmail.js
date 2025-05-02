@@ -194,6 +194,49 @@ const emailTemplates = {
       </html>
     `,
   }),
+
+  emailAuthCode: (email, code) => ({
+    from: '"LuFunds Security" <lufunds@araxy.co.uk>',
+    to: email,
+    subject: 'Your LuFunds Authentication Code',
+    text: `Your authentication code is: ${code}. This code will expire in 10 minutes.`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Authentication Code</title>
+        <style>
+          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #1a365d; padding: 20px; text-align: center; }
+          .header img { max-width: 150px; }
+          .content { padding: 30px; background-color: #f8f9fa; }
+          .footer { padding: 20px; text-align: center; font-size: 12px; color: #666; }
+          .code { font-size: 24px; font-weight: bold; color: #3182ce; text-align: center; margin: 20px 0; }
+          .alert { background-color: #fff5f5; padding: 15px; border-left: 4px solid #e53e3e; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <img src="https://lufunds.com/logo.png" alt="LuFunds Logo">
+          </div>
+          <div class="content">
+            <h2>Your Authentication Code</h2>
+            <p>Your authentication code is:</p>
+            <div class="code">${code}</div>
+            <p>This code will expire in 10 minutes. If you didn't request this code, please contact our support team immediately at <a href="mailto:security@lufunds.com">security@lufunds.com</a>.</p>
+          </div>
+          <div class="footer">
+            <p>&copy; ${new Date().getFullYear()} LuFunds. All rights reserved.</p>
+            <p><a href="${WEBSITE_URL}/privacy">Privacy Policy</a> | <a href="${WEBSITE_URL}/terms">Terms of Service</a></p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  }),
 };
 
 // Email Service Methods
@@ -211,7 +254,12 @@ const EmailService = {
   sendWelcomeEmail: async (email, name) => {
     const info = emailTemplates.welcomeEmail(email, name);
     return await transporter.sendMail(info);
-  }
+  },
+
+  sendEmailAuthCode: async (email, code) => {
+    const info = emailTemplates.emailAuthCode(email, code);
+    return await transporter.sendMail(info);
+  },
 };
 
 module.exports = EmailService;

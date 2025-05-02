@@ -24,11 +24,11 @@ function App() {
           <Route path="bank-statement" element={<BankStatement />} />
           <Route path="settings" element={<Settings />} />
           <Route path="transfer" element={<Transfer />} />
-          <Route path="auth" element={<Authenticate />} />
         </Route>
       </Routes>
     </Router>
   );
 }
+// add not found page
 
 export default App;

@@ -5,7 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 const cors = require('cors');
 require('dotenv').config({ path: './config.env' });
 const Email = require('./utils/sendEmail.js');
-
+const speakeasy = require('speakeasy');
+const QRCode = require('qrcode');
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -27,9 +28,14 @@ app.post('/register', async (req, res) => {
     const { email, name, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
+	const secret = speakeasy.generateSecret({
+		name: `LuFunds (${email})`
+	}); 
+	const qrcode = await QRCode.toDataURL(secret.otpauth_url);
+
     const { data: user, error: userError } = await supabase
       .from('users')
-      .insert([{ email, name, password: hashedPassword }])
+      .insert([{ email, name, password: hashedPassword, secret: secret.base32 }])
       .select()
       .single();
     if (userError) return handleError(res, userError);
@@ -43,7 +49,12 @@ app.post('/register', async (req, res) => {
 
     await Email.sendWelcomeEmail(email, name);
 
-    res.json({ message: 'User registered successfully', user, account });
+	const token = jwt.sign(
+		{ id: user.id, email: user.email, name: user.name },
+		process.env.JWT_SECRET,
+		{ expiresIn: '30d' }
+	  );
+	res.json({ token, qrcode});
   } catch (error) {
     handleError(res, error);
   }
@@ -135,6 +146,88 @@ const authenticate = (req, res, next) => {
   }
 };
 
+const verifycodes = async (req, res, next) => {
+	try {
+		const { emailCode, totpCode } = req.body;
+		if (!emailCode) return res.status(400).json({ error: 'Code is required' });
+
+		const { data, error } = await supabase
+		.from('email_auth_codes')
+		.select('code, expires_at')
+		.eq('user_id', req.user.id)
+		.maybeSingle();
+
+		if (error) return handleError(res, error);
+		if (!data) return res.status(404).json({ error: 'Invalid email code' });
+
+		const now = Date.now();
+
+		if (parseInt(data.expires_at) < now) {
+			return res.status(400).json({ error: 'Code expired' });
+		}
+
+		if (data.code !== emailCode) {
+		return res.status(400).json({ error: 'Invalid email code. Please try again' });
+		}
+
+		await supabase
+		.from('email_auth_codes')
+		.delete()
+		.eq('user_id', req.user.id);
+
+		// 2FA Setup
+
+		const { data: user, error: userError } = await supabase
+		.from('users')
+		.select('secret')
+		.eq('id', req.user.id)
+		.maybeSingle();
+
+		if (userError) return handleError(res, userError);
+
+		const verified = speakeasy.totp.verify({
+			secret: user.secret,
+			encoding: 'base32',
+			token: totpCode,
+			window: 1
+		});
+
+		if (!verified) {
+			return res.status(400).json({ error: 'Invalid TOTP code. Please try again' });
+		}
+
+		next();
+	} catch (error) {
+		handleError(res, error);
+	}
+}
+
+// Send email auth code (updated expiration time handling)
+app.post('/sendemailcode', authenticate, async (req, res) => {
+	try {
+	  const code = Math.floor(100000 + Math.random() * 900000).toString();
+	  await Email.sendEmailAuthCode(req.user.email, code);
+  
+	  const expirationTime = (Date.now() + 10 * 60 * 1000).toString()
+  
+	  const { error } = await supabase
+		.from('email_auth_codes')
+		.upsert(
+		  {
+			user_id: req.user.id,
+			code,
+			expires_at: expirationTime,
+		  },
+		  { onConflict: ['user_id'] }
+		);
+  
+	  if (error) return handleError(res, error);
+	  res.json({ message: 'Authentication code sent successfully' });
+	} catch (error) {
+	  handleError(res, error);
+	}
+});
+
 // Get Account Balance
 app.get('/balance', authenticate, async (req, res) => {
   try {
@@ -152,7 +245,7 @@ app.get('/balance', authenticate, async (req, res) => {
 });
 
 // Deposit Funds
-app.post('/deposit', authenticate, async (req, res) => {
+app.post('/deposit', authenticate, verifycodes, async (req, res) => {
   try {
     const { amount } = req.body;
     if (amount <= 0) return handleError(res, 'Invalid amount');
@@ -184,7 +277,7 @@ app.post('/deposit', authenticate, async (req, res) => {
 });
 
 // Withdraw Funds
-app.post('/withdraw', authenticate, async (req, res) => {
+app.post('/withdraw', authenticate, verifycodes, async (req, res) => {
   try {
     const { amount } = req.body;
     if (amount <= 0) return handleError(res, 'Invalid amount');

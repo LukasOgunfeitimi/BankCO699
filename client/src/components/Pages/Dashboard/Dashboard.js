@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useOutletContext, Link } from "react-router-dom";
+import { useNavigate, useOutletContext, Link, useLocation } from "react-router-dom";
 import { FaUser, FaMoneyBillWave, FaArrowDown, FaArrowUp, FaHistory } from "react-icons/fa";
 import { API_URL } from "../../../config";
 import AuthModal from '../../Tools/AuthModal';
 
 function Dashboard() {
   const { token } = useOutletContext();
+
+  const { state } = useLocation();
+  const qrCode = state?.qrcode;
+
   const navigate = useNavigate();
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
@@ -70,7 +74,7 @@ function Dashboard() {
     fetchData();
   }, [token]);
 
-  const handleTransaction = async (endpoint, authToken) => {
+  const handleTransaction = async (endpoint, emailCode, totpCode) => {
     if (!amount || isNaN(amount)) {
       setError('Please enter a valid amount');
       return;
@@ -85,7 +89,11 @@ function Dashboard() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ amount: parseFloat(amount) }),
+        body: JSON.stringify({ 
+			amount: parseFloat(amount),
+			emailCode,
+			totpCode
+		}),
       });
       const data = await response.json();
       if (response.ok) {
@@ -121,10 +129,10 @@ function Dashboard() {
   };
 
   // Called when authentication succeeds
-  const handleAuthSuccess = (authToken) => {
+  const handleAuthSuccess = (emailCode, totpCode) => {
     setAuthOpen(false);
     if (pendingAction) {
-      handleTransaction(pendingAction, authToken);
+      handleTransaction(pendingAction, emailCode, totpCode);
       setPendingAction(null);
     }
   };
@@ -165,6 +173,13 @@ function Dashboard() {
             </Link>
           </div>
         </div>
+
+		{qrCode && (
+			<div className="mt-4">
+				<p className="mb-2">Scan this QR code with your Authenticator app:</p>
+				<img src={qrCode} alt="TOTP QR Code" className="w-48 h-48 border" />
+			</div>
+		)}
 
         {error && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded">

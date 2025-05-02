@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import { API_URL } from "../../../config";
 function EmailTotpAuth({ onSuccess }) {
+  const { token } = useOutletContext();
   const [emailCode, setEmailCode] = useState('');
   const [totpCode, setTotpCode] = useState('');
   const [error, setError] = useState('');
@@ -18,44 +19,25 @@ function EmailTotpAuth({ onSuccess }) {
       return;
     }
     if (emailCode.length === 6 && totpCode.length === 6) {
-      handleSubmit();
+		onSuccess(emailCode, totpCode)
     }
-    // eslint-disable-next-line
   }, [emailCode, totpCode]);
-
-  const handleSubmit = async (e) => {
-    if (e) e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const response = await verifyCodes(emailCode, totpCode);
-
-      if (response.success) {
-        setSuccess(true);
-        localStorage.setItem('token', response.token);
-        if (onSuccess) {
-          setTimeout(() => onSuccess(), 800);
-        } else {
-          setTimeout(() => navigate('/dashboard'), 1200);
-        }
-      } else {
-        setError('Invalid authentication codes');
-      }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSendEmail = async () => {
     setSendingEmail(true);
     setError('');
     try {
-      await sendEmailCode();
-      setEmailSent(true);
-      setTimeout(() => setEmailSent(false), 4000);
+	  const sendEmailCodeResponse = await fetch(`${API_URL}/sendemailcode`, {
+		method: "POST",
+		headers: { Authorization: `Bearer ${token}` },
+	  });
+	  const userInfoData = await sendEmailCodeResponse.json();
+	  if (sendEmailCodeResponse.ok) {
+		setEmailSent(true);
+	  } else {
+		setEmailSent(false)
+		setError(userInfoData.error || 'Failed to send an email code');
+	  }
     } catch (err) {
       setError('Failed to send email code.');
     } finally {
@@ -66,7 +48,7 @@ function EmailTotpAuth({ onSuccess }) {
   return (
     <div className="flex justify-center items-center bg-gradient-to-br from-blue-50 to-blue-100">
       <form
-        onSubmit={handleSubmit}
+        onSubmit={()=>{}}
         className="bg-white p-10 rounded-2xl shadow-xl w-full max-w-md border border-blue-100"
         autoComplete="off"
       >
@@ -76,19 +58,19 @@ function EmailTotpAuth({ onSuccess }) {
         <div className="mb-6">
           <label className="block text-gray-700 mb-2 font-medium">Email Code</label>
           <div className="flex gap-2">
-            <input
-              type="text"
-              value={emailCode}
-              onChange={(e) => {
-                if (/^\d{0,6}$/.test(e.target.value)) setEmailCode(e.target.value);
-              }}
-              maxLength={6}
-              disabled={loading || success}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-lg tracking-widest text-center"
-              placeholder="Enter 6-digit code"
-              autoFocus
-              inputMode="numeric"
-            />
+		  <input
+			type="text"
+			value={emailCode}
+			onChange={(e) => {
+				if (/^\d{0,6}$/.test(e.target.value)) setEmailCode(e.target.value);
+			}}
+			maxLength={6}
+			disabled={!emailSent || loading || success}
+			className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-lg tracking-widest text-center"
+			placeholder="Enter 6-digit code"
+			autoFocus
+			inputMode="numeric"
+			/>
             <button
               type="button"
               onClick={handleSendEmail}
@@ -119,50 +101,9 @@ function EmailTotpAuth({ onSuccess }) {
             inputMode="numeric"
           />
         </div>
-        <button
-          type="submit"
-          disabled={loading || success || emailCode.length !== 6 || totpCode.length !== 6}
-          className={`w-full py-3 rounded-lg font-semibold transition ${
-            loading || success || emailCode.length !== 6 || totpCode.length !== 6
-              ? 'bg-blue-200 text-blue-500 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
-        >
-          {loading ? (
-            <span className="flex items-center justify-center">
-              <svg className="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
-              Verifying...
-            </span>
-          ) : (
-            'Verify'
-          )}
-        </button>
       </form>
     </div>
   );
 }
-
-// Placeholder function for actual API call
-const verifyCodes = async (emailCode, totpCode) => {
-  // Replace with actual API call
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (emailCode === '123456' && totpCode === '654321') {
-        resolve({ success: true, token: 'actual-jwt-token' });
-      } else {
-        resolve({ success: false });
-      }
-    }, 1000);
-  });
-};
-
-// Placeholder for sending email code
-const sendEmailCode = async () => {
-  // Replace with actual API call to send email code
-  return new Promise((resolve) => setTimeout(resolve, 1000));
-};
 
 export default EmailTotpAuth;

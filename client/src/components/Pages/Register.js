@@ -24,7 +24,8 @@ function Register() {
       });
       const data = await response.json();
       if (response.ok) {
-        navigate("/login");
+        localStorage.setItem("token", data.token);
+        navigate("/dashboard", { state: { qrcode: data.qrcode } });
       } else {
         setError(data.error || "Registration failed. Try again.");
       }
