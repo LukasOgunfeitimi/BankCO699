@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Dashboard from './components/Pages/Dashboard/Dashboard';
 import BankStatement from './components/Pages/BankStatement/BankStatement.js';
+import Authenticate from './components/Pages/Auth/Authenticate.js';
 import Layout from './components/Pages/Dashboard/Layout';
 import Login from './components/Pages/Login';
 import Register from './components/Pages/Register';
@@ -23,6 +24,7 @@ function App() {
           <Route path="bank-statement" element={<BankStatement />} />
           <Route path="settings" element={<Settings />} />
           <Route path="transfer" element={<Transfer />} />
+          <Route path="auth" element={<Authenticate />} />
         </Route>
       </Routes>
     </Router>

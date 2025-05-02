@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useOutletContext, Link } from "react-router-dom";
-import { FaUser, FaMoneyBillWave, FaArrowDown, FaArrowUp, FaHistory, FaExchangeAlt } from "react-icons/fa";
+import { FaUser, FaMoneyBillWave, FaArrowDown, FaArrowUp, FaHistory } from "react-icons/fa";
 import { API_URL } from "../../../config";
+import AuthModal from '../../Tools/AuthModal';
 
 function Dashboard() {
   const { token } = useOutletContext();
@@ -11,6 +12,9 @@ function Dashboard() {
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  const [authOpen, setAuthOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
 
   const [userInfo, setUserInfo] = useState({
     name: '',
@@ -66,7 +70,7 @@ function Dashboard() {
     fetchData();
   }, [token]);
 
-  const handleTransaction = async (endpoint) => {
+  const handleTransaction = async (endpoint, authToken) => {
     if (!amount || isNaN(amount)) {
       setError('Please enter a valid amount');
       return;
@@ -103,6 +107,25 @@ function Dashboard() {
       setError('Network error. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Open AuthModal and set pending action
+  const requestAuthFor = (action) => {
+    if (!amount || isNaN(amount)) {
+      setError('Please enter a valid amount');
+      return;
+    }
+    setPendingAction(action);
+    setAuthOpen(true);
+  };
+
+  // Called when authentication succeeds
+  const handleAuthSuccess = (authToken) => {
+    setAuthOpen(false);
+    if (pendingAction) {
+      handleTransaction(pendingAction, authToken);
+      setPendingAction(null);
     }
   };
 
@@ -191,17 +214,19 @@ function Dashboard() {
 
               <div className="grid grid-cols-2 gap-4">
                 <button
-                  onClick={() => handleTransaction('deposit')}
+                  onClick={() => requestAuthFor('deposit')}
                   disabled={isLoading}
                   className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50"
+                  type="button"
                 >
                   <FaArrowDown className="mr-2" />
                   {isLoading ? 'Processing...' : 'Deposit'}
                 </button>
                 <button
-                  onClick={() => handleTransaction('withdraw')}
+                  onClick={() => requestAuthFor('withdraw')}
                   disabled={isLoading}
                   className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg transition duration-200 disabled:opacity-50"
+                  type="button"
                 >
                   <FaArrowUp className="mr-2" />
                   {isLoading ? 'Processing...' : 'Withdraw'}
@@ -263,10 +288,11 @@ function Dashboard() {
                             {transaction.type}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium
-                          ${transaction.type === 'deposit' ? 'text-green-600' :
-                            transaction.type === 'withdrawal' ? 'text-blue-600' :
-                            'text-yellow-600'}">
+                        <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${
+                          transaction.type === 'deposit' ? 'text-green-600' :
+                          transaction.type === 'withdrawal' ? 'text-blue-600' :
+                          'text-yellow-600'
+                        }`}>
                           ${transaction.amount.toFixed(2)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -294,6 +320,8 @@ function Dashboard() {
           </div>
         </div>
       </div>
+      {/* Auth Modal */}
+      <AuthModal open={authOpen} onSuccess={handleAuthSuccess} onCancel={() => setAuthOpen(false)} />
     </div>
   );
 }
