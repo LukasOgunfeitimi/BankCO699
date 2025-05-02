@@ -398,7 +398,7 @@ app.put('/settings/password', authenticate, async (req, res) => {
 });
 
 // Transfer Funds
-app.post('/transfer', authenticate, async (req, res) => {
+app.post('/transfer', authenticate, verifycodes, async (req, res) => {
   try {
     const { amount, recipientAccountNum } = req.body;
     if (amount <= 0) return handleError(res, 'Invalid amount');
