@@ -6,6 +6,7 @@ const cors = require('cors');
 require('dotenv').config({ path: './config.env' });
 const Email = require('./utils/sendEmail.js');
 const speakeasy = require('speakeasy');
+const rateLimit = require('express-rate-limit'); 
 const QRCode = require('qrcode');
 const app = express();
 const port = process.env.PORT || 3000;
@@ -16,6 +17,16 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 // Middleware
 app.use(express.json());
 app.use(cors());
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,  // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false,   // Disable the `X-RateLimit-*` headers
+});
+
+// Apply rate limiter globally
+app.use(limiter);
 
 // Utility function to handle errors
 const handleError = (res, error, status = 400) => res.status(status).json({ error: error.message || error });
@@ -158,7 +169,7 @@ const verifycodes = async (req, res, next) => {
 		.maybeSingle();
 
 		if (error) return handleError(res, error);
-		if (!data) return res.status(404).json({ error: 'Invalid email code' });
+		if (!data) return res.status(404).json({ error: 'Invalid codes' });
 
 		const now = Date.now();
 
@@ -167,7 +178,7 @@ const verifycodes = async (req, res, next) => {
 		}
 
 		if (data.code !== emailCode) {
-		return res.status(400).json({ error: 'Invalid email code. Please try again' });
+		return res.status(400).json({ error: 'Invalid codes. Please try again' });
 		}
 
 		await supabase
@@ -193,7 +204,7 @@ const verifycodes = async (req, res, next) => {
 		});
 
 		if (!verified) {
-			return res.status(400).json({ error: 'Invalid TOTP code. Please try again' });
+			return res.status(400).json({ error: 'Invalid codes. Please try again' });
 		}
 
 		next();

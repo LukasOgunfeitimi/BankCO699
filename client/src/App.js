@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import SecurityBanner from './components/SecurityBanner'; // import it here
+
 import Dashboard from './components/Pages/Dashboard/Dashboard';
 import BankStatement from './components/Pages/BankStatement/BankStatement.js';
 import Authenticate from './components/Pages/Auth/Authenticate.js';
@@ -14,21 +16,23 @@ import Transfer from './components/Pages/Dashboard/Transfer';
 function App() {
   return (
     <Router>
+      <SecurityBanner />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/requestreset" element={<RequestReset />} />
         <Route path="/resetpassword" element={<ResetPassword />} />
+
         <Route path="/" element={<Layout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="bank-statement" element={<BankStatement />} />
           <Route path="settings" element={<Settings />} />
           <Route path="transfer" element={<Transfer />} />
         </Route>
+        
       </Routes>
     </Router>
   );
 }
-// add not found page
 
 export default App;
