@@ -11,10 +11,8 @@ const QRCode = require('qrcode');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Initialize Supabase client
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Middleware
 app.use(express.json());
 app.use(cors());
 const limiter = rateLimit({
@@ -31,7 +29,6 @@ app.use(limiter);
 // Utility function to handle errors
 const handleError = (res, error, status = 400) => res.status(status).json({ error: error.message || error });
 
-// Routes
 
 // User Registration
 app.post('/register', async (req, res) => {
@@ -42,7 +39,7 @@ app.post('/register', async (req, res) => {
 	const secret = speakeasy.generateSecret({
 		name: `LuFunds (${email})`
 	}); 
-	const qrcode = await QRCode.toDataURL(secret.otpauth_url);
+	const qrcode = QRCode.toDataURL(secret.otpauth_url);
 
     const { data: user, error: userError } = await supabase
       .from('users')
